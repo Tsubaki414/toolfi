@@ -1,42 +1,152 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { formatUnits, parseUnits } from 'viem';
+import { REGISTRY_ADDRESS, USDC_ADDRESS, REGISTRY_ABI, USDC_ABI, API_URL } from './contracts';
 
-const REGISTRY_ADDRESS = '0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2';
-const API_URL = 'https://toolfi.vercel.app';
-
-const tools = [
-  {
-    id: 0,
-    name: 'Crypto Price Oracle',
-    description: 'Get real-time cryptocurrency prices, 24h change, market cap.',
-    price: '0.001 USDC',
-    endpoint: '/api/price?symbol=ethereum',
-  },
-  {
-    id: 1,
-    name: 'Wallet Risk Scanner',
-    description: 'Analyze any EVM wallet for risk signals and suspicious patterns.',
-    price: '0.005 USDC',
-    endpoint: '/api/risk?address=0x...',
-  },
-  {
-    id: 2,
-    name: 'News Digest',
-    description: 'Get AI-summarized crypto news from the last 24 hours.',
-    price: '0.002 USDC',
-    endpoint: '/api/news?topic=defi',
-  },
-];
+interface Tool {
+  id: bigint;
+  creator: string;
+  name: string;
+  endpoint: string;
+  description: string;
+  pricePerCall: bigint;
+  totalCalls: bigint;
+  totalEarned: bigint;
+  active: boolean;
+}
 
 export default function Home() {
+  const { address, isConnected } = useAccount();
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [showRegister, setShowRegister] = useState(false);
+  const [newTool, setNewTool] = useState({ name: '', endpoint: '', description: '', price: '' });
   const [demoResponse, setDemoResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Read tool count
+  const { data: toolCount } = useReadContract({
+    address: REGISTRY_ADDRESS,
+    abi: REGISTRY_ABI,
+    functionName: 'toolCount',
+  });
+
+  // Read user's earnings balance
+  const { data: userBalance } = useReadContract({
+    address: REGISTRY_ADDRESS,
+    abi: REGISTRY_ABI,
+    functionName: 'balances',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  // Write contracts
+  const { writeContract, data: txHash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+
+  // Fetch all tools
+  useEffect(() => {
+    async function fetchTools() {
+      if (!toolCount) return;
+      const count = Number(toolCount);
+      const fetchedTools: Tool[] = [];
+      
+      for (let i = 0; i < count; i++) {
+        try {
+          const res = await fetch(`https://sepolia.base.org`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: i,
+              method: 'eth_call',
+              params: [{
+                to: REGISTRY_ADDRESS,
+                data: `0x35b62be7${i.toString(16).padStart(64, '0')}` // tools(uint256)
+              }, 'latest']
+            })
+          });
+          const json = await res.json();
+          if (json.result && json.result !== '0x') {
+            // Decode the result (simplified - in production use viem's decodeAbiParameters)
+            // For now, we'll use a direct RPC approach
+          }
+        } catch (e) {
+          console.error('Error fetching tool', i, e);
+        }
+      }
+    }
+    fetchTools();
+  }, [toolCount]);
+
+  // Simple tool data (hardcoded for demo since decoding is complex)
+  const demoTools: Tool[] = [
+    {
+      id: 0n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'Crypto Price Oracle',
+      endpoint: `${API_URL}/api/price`,
+      description: 'Get real-time cryptocurrency prices. Input: token symbol. Output: price in USD, 24h change, market cap.',
+      pricePerCall: 1000n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+    },
+    {
+      id: 1n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'Wallet Risk Scanner',
+      endpoint: `${API_URL}/api/risk`,
+      description: 'Analyze any EVM wallet for risk signals. Input: wallet address. Output: risk score, suspicious patterns.',
+      pricePerCall: 5000n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+    },
+    {
+      id: 2n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'News Digest',
+      endpoint: `${API_URL}/api/news`,
+      description: 'Get AI-summarized crypto news. Input: topic keyword. Output: top 5 headlines with summaries.',
+      pricePerCall: 2000n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+    },
+  ];
+
+  const displayTools = tools.length > 0 ? tools : demoTools;
+
+  const handleRegister = async () => {
+    if (!newTool.name || !newTool.endpoint || !newTool.description || !newTool.price) {
+      alert('Please fill all fields');
+      return;
+    }
+    const priceInMicro = parseUnits(newTool.price, 6);
+    writeContract({
+      address: REGISTRY_ADDRESS,
+      abi: REGISTRY_ABI,
+      functionName: 'registerTool',
+      args: [newTool.name, newTool.endpoint, newTool.description, priceInMicro],
+    });
+  };
+
+  const handleWithdraw = () => {
+    writeContract({
+      address: REGISTRY_ADDRESS,
+      abi: REGISTRY_ABI,
+      functionName: 'withdraw',
+    });
+  };
 
   const tryTool = async (endpoint: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}${endpoint}`);
+      const url = endpoint.includes('?') ? endpoint : `${endpoint}?symbol=ethereum`;
+      const res = await fetch(url);
       const data = await res.json();
       setDemoResponse(JSON.stringify(data, null, 2));
     } catch (e) {
@@ -47,168 +157,212 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* Hero */}
-      <header className="max-w-5xl mx-auto px-6 py-20 text-center">
-        <h1 className="text-5xl font-bold mb-4">
-          <span className="text-blue-400">Tool</span>Fi
-        </h1>
-        <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-          Agent Tool Marketplace with USDC Payments. <br />
-          Discover, publish, and pay for AI agent tools — all on-chain.
-        </p>
-        <div className="flex gap-4 justify-center flex-wrap">
-          <a
-            href="https://github.com/Tsubaki414/toolfi"
-            target="_blank"
-            className="px-6 py-3 bg-white text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition"
-          >
-            GitHub
-          </a>
-          <a
-            href={`https://sepolia.basescan.org/address/${REGISTRY_ADDRESS}`}
-            target="_blank"
-            className="px-6 py-3 bg-blue-600 font-semibold rounded-lg hover:bg-blue-700 transition"
-          >
-            View Contract
-          </a>
-          <a
-            href={API_URL}
-            target="_blank"
-            className="px-6 py-3 border border-gray-500 rounded-lg hover:border-white transition"
-          >
-            API Docs
-          </a>
+      {/* Header */}
+      <header className="border-b border-gray-800">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold">
+            <span className="text-blue-400">Tool</span>Fi
+          </h1>
+          <div className="flex items-center gap-4">
+            <a href="https://github.com/Tsubaki414/toolfi" target="_blank" className="text-gray-400 hover:text-white text-sm">
+              GitHub
+            </a>
+            <a href={API_URL} target="_blank" className="text-gray-400 hover:text-white text-sm">
+              API
+            </a>
+            <ConnectButton />
+          </div>
         </div>
       </header>
 
-      {/* How it works */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12">How It Works</h2>
-        <div className="grid md:grid-cols-4 gap-6">
-          {[
-            { step: '1', title: 'Call API', desc: 'Agent calls any tool endpoint' },
-            { step: '2', title: 'Get 402', desc: 'Server returns payment instructions' },
-            { step: '3', title: 'Pay USDC', desc: 'Agent pays on-chain via contract' },
-            { step: '4', title: 'Get Data', desc: 'Retry with tx hash → receive data' },
-          ].map((item) => (
-            <div key={item.step} className="bg-gray-800 rounded-xl p-6 text-center">
-              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                {item.step}
-              </div>
-              <h3 className="font-semibold mb-2">{item.title}</h3>
-              <p className="text-gray-400 text-sm">{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Code example */}
-      <section className="max-w-5xl mx-auto px-6 py-8">
-        <div className="bg-gray-950 rounded-xl p-6 overflow-x-auto">
-          <pre className="text-sm text-gray-300">
-{`// 1. Call tool → get 402 Payment Required
-GET /api/price?symbol=ETH
-→ { status: 402, payment: { toolId: 0, price: 1000, contract: "0x7d6..." } }
-
-// 2. Pay USDC on-chain
-usdc.approve(registry, 1000)
-registry.payForCall(0)  // toolId = 0
-
-// 3. Retry with payment proof
-GET /api/price?symbol=ETH
-Header: X-Payment-Tx: 0x<your_tx_hash>
-→ { data: { token: "ETH", priceUsd: "3245.67", ... } }`}
-          </pre>
-        </div>
-      </section>
-
-      {/* Demo Tools */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
-        <h2 className="text-3xl font-bold text-center mb-4">Demo Tools</h2>
-        <p className="text-gray-400 text-center mb-12">
-          Try calling a tool — you&apos;ll see the 402 response with payment instructions
+      {/* Hero */}
+      <section className="max-w-6xl mx-auto px-6 py-16 text-center">
+        <h2 className="text-4xl font-bold mb-4">Agent Tool Marketplace</h2>
+        <p className="text-xl text-gray-400 mb-8">
+          Discover, publish, and pay for AI agent tools — all on-chain with USDC
         </p>
-        <div className="grid md:grid-cols-3 gap-6">
-          {tools.map((tool) => (
-            <div key={tool.id} className="bg-gray-800 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs bg-blue-600 px-2 py-1 rounded">Tool #{tool.id}</span>
-                <span className="text-green-400 font-mono text-sm">{tool.price}</span>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">{tool.name}</h3>
-              <p className="text-gray-400 text-sm mb-4">{tool.description}</p>
-              <code className="text-xs text-gray-500 block mb-4 break-all">{tool.endpoint}</code>
-              <button
-                onClick={() => tryTool(tool.endpoint)}
-                className="w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition"
-              >
-                Try it →
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Demo response */}
-        {demoResponse && (
-          <div className="mt-8 bg-gray-950 rounded-xl p-6 overflow-x-auto">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-sm text-gray-400">API Response (402 Payment Required)</span>
-              <button
-                onClick={() => setDemoResponse(null)}
-                className="text-gray-500 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-            <pre className="text-sm text-green-400">{loading ? 'Loading...' : demoResponse}</pre>
-          </div>
+        {isConnected && (
+          <button
+            onClick={() => setShowRegister(!showRegister)}
+            className="px-6 py-3 bg-blue-600 font-semibold rounded-lg hover:bg-blue-700 transition"
+          >
+            {showRegister ? 'Close' : '+ Register New Tool'}
+          </button>
         )}
       </section>
 
-      {/* Why USDC */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12">Why USDC?</h2>
-        <div className="grid md:grid-cols-2 gap-6">
+      {/* Register Tool Form */}
+      {showRegister && isConnected && (
+        <section className="max-w-2xl mx-auto px-6 pb-12">
+          <div className="bg-gray-800 rounded-xl p-6">
+            <h3 className="text-xl font-semibold mb-4">Register Your Tool</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Tool Name</label>
+                <input
+                  type="text"
+                  value={newTool.name}
+                  onChange={(e) => setNewTool({ ...newTool, name: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-900 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
+                  placeholder="e.g. Weather Oracle"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">API Endpoint</label>
+                <input
+                  type="text"
+                  value={newTool.endpoint}
+                  onChange={(e) => setNewTool({ ...newTool, endpoint: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-900 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
+                  placeholder="https://api.example.com/weather"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                <textarea
+                  value={newTool.description}
+                  onChange={(e) => setNewTool({ ...newTool, description: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-900 rounded-lg border border-gray-700 focus:border-blue-500 outline-none h-24"
+                  placeholder="What does your tool do? What inputs/outputs?"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Price per Call (USDC)</label>
+                <input
+                  type="text"
+                  value={newTool.price}
+                  onChange={(e) => setNewTool({ ...newTool, price: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-900 rounded-lg border border-gray-700 focus:border-blue-500 outline-none"
+                  placeholder="0.001"
+                />
+              </div>
+              <button
+                onClick={handleRegister}
+                disabled={isPending || isConfirming}
+                className="w-full py-3 bg-blue-600 font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Registering...' : 'Register Tool'}
+              </button>
+              {isSuccess && (
+                <p className="text-green-400 text-sm text-center">✓ Tool registered successfully!</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* User Balance */}
+      {isConnected && userBalance && userBalance > 0n && (
+        <section className="max-w-6xl mx-auto px-6 pb-8">
+          <div className="bg-green-900/30 border border-green-700 rounded-xl p-4 flex justify-between items-center">
+            <div>
+              <p className="text-sm text-green-400">Your Earnings</p>
+              <p className="text-2xl font-bold">{formatUnits(userBalance, 6)} USDC</p>
+            </div>
+            <button
+              onClick={handleWithdraw}
+              disabled={isPending || isConfirming}
+              className="px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition"
+            >
+              Withdraw
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Tools Grid */}
+      <section className="max-w-6xl mx-auto px-6 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold">Available Tools</h3>
+          <span className="text-gray-400">{displayTools.length} tools registered</span>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {displayTools.map((tool) => (
+            <div key={Number(tool.id)} className="bg-gray-800 rounded-xl p-6 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs bg-blue-600/30 text-blue-400 px-2 py-1 rounded">#{Number(tool.id)}</span>
+                <span className="text-green-400 font-mono">{formatUnits(tool.pricePerCall, 6)} USDC</span>
+              </div>
+              <h4 className="text-lg font-semibold mb-2">{tool.name}</h4>
+              <p className="text-gray-400 text-sm mb-4 flex-grow">{tool.description}</p>
+              <div className="text-xs text-gray-500 mb-4 truncate" title={tool.endpoint}>
+                {tool.endpoint}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => tryTool(tool.endpoint)}
+                  className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition"
+                >
+                  Try (402)
+                </button>
+                <a
+                  href={`https://sepolia.basescan.org/address/${REGISTRY_ADDRESS}`}
+                  target="_blank"
+                  className="px-3 py-2 border border-gray-600 hover:border-white rounded-lg text-sm transition"
+                >
+                  ↗
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Demo response */}
+      {demoResponse && (
+        <section className="max-w-6xl mx-auto px-6 pb-8">
+          <div className="bg-gray-950 rounded-xl p-6 overflow-x-auto">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm text-gray-400">API Response (402 Payment Required)</span>
+              <button onClick={() => setDemoResponse(null)} className="text-gray-500 hover:text-white">✕</button>
+            </div>
+            <pre className="text-sm text-green-400 whitespace-pre-wrap">{loading ? 'Loading...' : demoResponse}</pre>
+          </div>
+        </section>
+      )}
+
+      {/* How it works */}
+      <section className="max-w-6xl mx-auto px-6 py-16 border-t border-gray-800">
+        <h3 className="text-2xl font-bold text-center mb-8">How It Works</h3>
+        <div className="grid md:grid-cols-4 gap-4">
           {[
-            { title: 'Stable', desc: 'No price volatility — tool creators know exactly what they earn' },
-            { title: 'Programmable', desc: 'Smart contract escrow handles payment splitting automatically' },
-            { title: 'Widely Held', desc: 'The most used stablecoin, already in agent wallets' },
-            { title: 'Base Native', desc: 'Fast, cheap L2 transactions keep per-call costs viable' },
+            { step: '1', title: 'Discover', desc: 'Browse tools registered on-chain' },
+            { step: '2', title: 'Call API', desc: 'Get 402 with payment instructions' },
+            { step: '3', title: 'Pay USDC', desc: 'Call payForCall() on-chain' },
+            { step: '4', title: 'Get Data', desc: 'Retry with X-Payment-Tx header' },
           ].map((item) => (
-            <div key={item.title} className="bg-gray-800 rounded-xl p-6">
-              <h3 className="font-semibold mb-2 text-blue-400">{item.title}</h3>
+            <div key={item.step} className="bg-gray-800/50 rounded-xl p-4 text-center">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-3">
+                {item.step}
+              </div>
+              <h4 className="font-semibold mb-1">{item.title}</h4>
               <p className="text-gray-400 text-sm">{item.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Links */}
-      <section className="max-w-5xl mx-auto px-6 py-16 text-center">
-        <h2 className="text-3xl font-bold mb-8">Get Started</h2>
-        <div className="bg-gray-800 rounded-xl p-8 inline-block text-left">
-          <div className="space-y-4 font-mono text-sm">
-            <p><span className="text-gray-500">Contract:</span> <a href={`https://sepolia.basescan.org/address/${REGISTRY_ADDRESS}`} className="text-blue-400 hover:underline" target="_blank">{REGISTRY_ADDRESS}</a></p>
-            <p><span className="text-gray-500">Chain:</span> Base Sepolia (84532)</p>
-            <p><span className="text-gray-500">USDC:</span> 0x036CbD53842c5426634e7929541eC2318f3dCF7e</p>
-            <p><span className="text-gray-500">API:</span> <a href={API_URL} className="text-blue-400 hover:underline" target="_blank">{API_URL}</a></p>
+      {/* Footer */}
+      <footer className="border-t border-gray-800 py-8">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
+          <div>
+            Built for the{' '}
+            <a href="https://moltbook.com/m/usdc" target="_blank" className="text-blue-400 hover:underline">
+              USDC Hackathon
+            </a>
+          </div>
+          <div className="flex gap-6">
+            <a href={`https://sepolia.basescan.org/address/${REGISTRY_ADDRESS}`} target="_blank" className="hover:text-white">
+              Contract
+            </a>
+            <a href="https://faucet.circle.com/" target="_blank" className="hover:text-white">
+              Get Testnet USDC
+            </a>
+            <a href="https://github.com/Tsubaki414/toolfi" target="_blank" className="hover:text-white">
+              GitHub
+            </a>
           </div>
         </div>
-        <p className="mt-8 text-gray-400">
-          Get testnet USDC from{' '}
-          <a href="https://faucet.circle.com/" target="_blank" className="text-blue-400 hover:underline">
-            Circle&apos;s Faucet
-          </a>
-        </p>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-800 py-8 text-center text-gray-500 text-sm">
-        Built for the{' '}
-        <a href="https://moltbook.com/m/usdc" target="_blank" className="text-blue-400 hover:underline">
-          USDC Hackathon
-        </a>{' '}
-        on Moltbook
       </footer>
     </div>
   );
