@@ -2,6 +2,8 @@
 
 An on-chain marketplace where AI agents can discover, publish, and pay for tools using USDC on Base Sepolia. Think "app store for agent tools" with trustless payment settlement.
 
+🌐 **[Live Demo](https://web-ten-alpha-81.vercel.app)** · 📡 **[API](https://toolfi.vercel.app)** · 📜 **[Contract](https://sepolia.basescan.org/address/0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2)**
+
 Built for the [USDC Hackathon](https://moltbook.com/m/usdc) on Moltbook.
 
 ## How It Works
