@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "ToolFi Demo API — Agent tool marketplace with USDC payments",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
