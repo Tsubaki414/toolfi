@@ -62,9 +62,9 @@ Full SKILL.md with usage documentation, making ToolFi installable and usable by 
 
 ## Links
 
-- **GitHub:** [LINK]
-- **API:** [LINK]
-- **Contract on BaseScan:** [LINK]
+- **GitHub:** https://github.com/Tsubaki414/toolfi
+- **API:** https://toolfi.vercel.app
+- **Contract on BaseScan:** https://sepolia.basescan.org/address/0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2
 - **OpenClaw Skill:** See `skill/SKILL.md` in the repo
 
 ## Track
