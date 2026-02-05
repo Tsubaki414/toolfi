@@ -78,7 +78,7 @@ cast send $REGISTRY "withdraw()" \
 |-------|-------|
 | Chain | Base Sepolia (84532) |
 | USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| Registry | *deploying...* |
+| Registry | [`0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2`](https://sepolia.basescan.org/address/0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2) |
 
 ### Functions
 

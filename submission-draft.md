@@ -34,7 +34,7 @@ Server → verifies on-chain → returns live price data
 - Creator earnings accumulation and withdrawal
 - Tool management (activate/deactivate, price updates)
 - 18 comprehensive unit tests, all passing
-- Deployed on Base Sepolia: `[ADDRESS]`
+- Deployed on Base Sepolia: `0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2`
 
 ### Demo API Server
 Three working tools that demonstrate the payment flow:
