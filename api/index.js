@@ -306,20 +306,276 @@ app.get('/api/news', requirePayment(2, 'News Digest', 2000), async (req, res) =>
   }
 });
 
+// Tool 3: Rug Pull Scanner (GoPlus API)
+app.get('/api/rugcheck', requirePayment(3, 'Rug Pull Scanner', 3000), async (req, res) => {
+  const token = req.query.token;
+  const chainId = req.query.chain || '1'; // Default to Ethereum mainnet
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token address required. Use ?token=0x...&chain=1' });
+  }
+
+  try {
+    // GoPlus Token Security API
+    const goplusUrl = `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${token}`;
+    const response = await fetch(goplusUrl);
+    const data = await response.json();
+
+    if (data.code !== 1 || !data.result || !data.result[token.toLowerCase()]) {
+      return res.status(404).json({ 
+        error: 'Token not found or not supported',
+        detail: 'GoPlus may not have data for this token/chain combination'
+      });
+    }
+
+    const tokenData = data.result[token.toLowerCase()];
+    
+    // Calculate rug pull probability score
+    let rugScore = 0;
+    const redFlags = [];
+    const warnings = [];
+
+    // Critical red flags (high weight)
+    if (tokenData.is_honeypot === '1') {
+      rugScore += 40;
+      redFlags.push('🚨 HONEYPOT DETECTED - Cannot sell tokens');
+    }
+    if (tokenData.is_blacklisted === '1') {
+      rugScore += 20;
+      redFlags.push('Blacklist function enabled');
+    }
+    if (tokenData.can_take_back_ownership === '1') {
+      rugScore += 25;
+      redFlags.push('Owner can reclaim ownership after renouncing');
+    }
+    if (tokenData.owner_change_balance === '1') {
+      rugScore += 30;
+      redFlags.push('Owner can modify balances');
+    }
+    if (tokenData.hidden_owner === '1') {
+      rugScore += 20;
+      redFlags.push('Hidden owner detected');
+    }
+    if (tokenData.selfdestruct === '1') {
+      rugScore += 35;
+      redFlags.push('Contract can self-destruct');
+    }
+    if (tokenData.external_call === '1') {
+      rugScore += 15;
+      warnings.push('External calls in contract');
+    }
+
+    // Tax analysis
+    const buyTax = parseFloat(tokenData.buy_tax || '0') * 100;
+    const sellTax = parseFloat(tokenData.sell_tax || '0') * 100;
+    if (sellTax > 10) {
+      rugScore += 15;
+      warnings.push(`High sell tax: ${sellTax.toFixed(1)}%`);
+    }
+    if (buyTax > 10) {
+      rugScore += 10;
+      warnings.push(`High buy tax: ${buyTax.toFixed(1)}%`);
+    }
+
+    // Ownership
+    if (tokenData.is_open_source !== '1') {
+      rugScore += 10;
+      warnings.push('Contract not verified/open source');
+    }
+    if (tokenData.is_proxy === '1') {
+      rugScore += 5;
+      warnings.push('Proxy contract (upgradeable)');
+    }
+    if (tokenData.is_mintable === '1') {
+      rugScore += 10;
+      warnings.push('Token is mintable');
+    }
+
+    // Liquidity
+    if (tokenData.lp_holders && tokenData.lp_holders.length > 0) {
+      const topLpHolder = tokenData.lp_holders[0];
+      if (parseFloat(topLpHolder.percent) > 0.9) {
+        rugScore += 15;
+        warnings.push(`Top LP holder owns ${(parseFloat(topLpHolder.percent) * 100).toFixed(1)}% of liquidity`);
+      }
+    }
+
+    // Clamp score
+    rugScore = Math.min(100, rugScore);
+    
+    // Determine risk level
+    let riskLevel, riskEmoji;
+    if (rugScore >= 60) {
+      riskLevel = 'CRITICAL';
+      riskEmoji = '🔴';
+    } else if (rugScore >= 40) {
+      riskLevel = 'HIGH';
+      riskEmoji = '🟠';
+    } else if (rugScore >= 20) {
+      riskLevel = 'MEDIUM';
+      riskEmoji = '🟡';
+    } else {
+      riskLevel = 'LOW';
+      riskEmoji = '🟢';
+    }
+
+    res.json({
+      tool: 'Rug Pull Scanner',
+      payment: req.paymentVerified,
+      data: {
+        token: token,
+        chain: chainId,
+        tokenName: tokenData.token_name || 'Unknown',
+        tokenSymbol: tokenData.token_symbol || 'Unknown',
+        rugScore,
+        riskLevel: `${riskEmoji} ${riskLevel}`,
+        redFlags,
+        warnings,
+        details: {
+          isHoneypot: tokenData.is_honeypot === '1',
+          buyTax: `${buyTax.toFixed(2)}%`,
+          sellTax: `${sellTax.toFixed(2)}%`,
+          isOpenSource: tokenData.is_open_source === '1',
+          isProxy: tokenData.is_proxy === '1',
+          isMintable: tokenData.is_mintable === '1',
+          ownerAddress: tokenData.owner_address || 'Renounced',
+          totalSupply: tokenData.total_supply,
+          holderCount: tokenData.holder_count,
+        },
+        source: 'GoPlus Security API',
+        analyzedAt: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Rug check failed', detail: e.message });
+  }
+});
+
+// Tool 4: Cross-chain Bridge Router (Li.Fi API)
+app.get('/api/bridge', requirePayment(4, 'Bridge Router', 2000), async (req, res) => {
+  const { fromChain, toChain, fromToken, toToken, amount } = req.query;
+
+  if (!fromChain || !toChain || !fromToken || !toToken || !amount) {
+    return res.status(400).json({ 
+      error: 'Missing parameters',
+      required: {
+        fromChain: 'Source chain ID (e.g., 1 for Ethereum, 42161 for Arbitrum)',
+        toChain: 'Destination chain ID',
+        fromToken: 'Source token address (use 0x0 for native)',
+        toToken: 'Destination token address',
+        amount: 'Amount in smallest unit (wei)'
+      },
+      example: '/api/bridge?fromChain=1&toChain=42161&fromToken=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&toToken=0xaf88d065e77c8cC2239327C5EDb3A432268e5831&amount=1000000000'
+    });
+  }
+
+  try {
+    // Li.Fi Quote API
+    const lifiUrl = new URL('https://li.quest/v1/quote');
+    lifiUrl.searchParams.set('fromChain', fromChain);
+    lifiUrl.searchParams.set('toChain', toChain);
+    lifiUrl.searchParams.set('fromToken', fromToken);
+    lifiUrl.searchParams.set('toToken', toToken);
+    lifiUrl.searchParams.set('fromAmount', amount);
+    lifiUrl.searchParams.set('fromAddress', '0x0000000000000000000000000000000000000000'); // Placeholder
+    
+    const response = await fetch(lifiUrl.toString(), {
+      headers: {
+        'x-lifi-integrator': 'tooldrop-demo'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return res.status(response.status).json({
+        error: 'Li.Fi API error',
+        detail: errorData.message || `Status ${response.status}`,
+        hint: 'Check chain IDs and token addresses. Common chains: 1=Ethereum, 10=Optimism, 137=Polygon, 42161=Arbitrum, 8453=Base'
+      });
+    }
+
+    const quote = await response.json();
+
+    // Extract key info
+    const route = quote.includedSteps?.map(step => ({
+      type: step.type,
+      tool: step.tool,
+      fromChain: step.action?.fromChainId,
+      toChain: step.action?.toChainId,
+      fromToken: step.action?.fromToken?.symbol,
+      toToken: step.action?.toToken?.symbol,
+    })) || [];
+
+    res.json({
+      tool: 'Bridge Router',
+      payment: req.paymentVerified,
+      data: {
+        quote: {
+          fromChain: quote.action?.fromChainId,
+          toChain: quote.action?.toChainId,
+          fromToken: {
+            symbol: quote.action?.fromToken?.symbol,
+            address: quote.action?.fromToken?.address,
+            decimals: quote.action?.fromToken?.decimals,
+          },
+          toToken: {
+            symbol: quote.action?.toToken?.symbol,
+            address: quote.action?.toToken?.address,
+            decimals: quote.action?.toToken?.decimals,
+          },
+          fromAmount: quote.action?.fromAmount,
+          toAmount: quote.estimate?.toAmount,
+          toAmountMin: quote.estimate?.toAmountMin,
+        },
+        estimate: {
+          executionDuration: `${Math.round((quote.estimate?.executionDuration || 0) / 60)} minutes`,
+          gasCosts: quote.estimate?.gasCosts?.map(g => ({
+            type: g.type,
+            amount: g.amount,
+            amountUSD: g.amountUSD,
+            token: g.token?.symbol,
+          })),
+          feeCosts: quote.estimate?.feeCosts?.map(f => ({
+            name: f.name,
+            amount: f.amount,
+            amountUSD: f.amountUSD,
+            token: f.token?.symbol,
+          })),
+        },
+        route,
+        tool: quote.tool,
+        toolDetails: quote.toolDetails,
+        transactionRequest: quote.transactionRequest ? {
+          to: quote.transactionRequest.to,
+          data: quote.transactionRequest.data?.substring(0, 100) + '...', // Truncate for readability
+          value: quote.transactionRequest.value,
+          gasLimit: quote.transactionRequest.gasLimit,
+        } : null,
+        source: 'Li.Fi Aggregator',
+        quotedAt: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Bridge quote failed', detail: e.message });
+  }
+});
+
 // ─── Info Endpoints (free) ───────────────────────────────
 
 app.get('/', (req, res) => {
   res.json({
-    name: 'ToolFi API',
-    version: '1.0.0',
+    name: 'ToolDrop API',
+    version: '1.1.0',
     description: 'Agent tool marketplace with USDC payments (x402 style)',
     registry: REGISTRY_ADDRESS || 'not deployed yet',
     chain: 'Base Sepolia (84532)',
     usdc: USDC_ADDRESS,
     tools: [
-      { id: 0, name: 'Crypto Price Oracle', endpoint: '/api/price?symbol=bitcoin', price: '0.001 USDC' },
-      { id: 1, name: 'Wallet Risk Scanner', endpoint: '/api/risk?address=0x...', price: '0.005 USDC' },
-      { id: 2, name: 'News Digest', endpoint: '/api/news?topic=defi', price: '0.002 USDC' },
+      { id: 0, name: 'Crypto Price Oracle', endpoint: '/api/price?symbol=bitcoin', price: '0.001 USDC', category: 'data' },
+      { id: 1, name: 'Wallet Risk Scanner', endpoint: '/api/risk?address=0x...', price: '0.005 USDC', category: 'blockchain' },
+      { id: 2, name: 'News Digest', endpoint: '/api/news?topic=defi', price: '0.002 USDC', category: 'data' },
+      { id: 3, name: 'Rug Pull Scanner', endpoint: '/api/rugcheck?token=0x...&chain=1', price: '0.003 USDC', category: 'blockchain' },
+      { id: 4, name: 'Bridge Router', endpoint: '/api/bridge?fromChain=1&toChain=42161&fromToken=0x...&toToken=0x...&amount=1000000', price: '0.002 USDC', category: 'blockchain' },
     ],
     howToPay: {
       step1: 'Call any /api/* endpoint without payment → get 402 response with instructions',
