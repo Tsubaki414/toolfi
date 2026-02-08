@@ -283,4 +283,88 @@ contract ToolRegistryTest is Test {
         registry.payForCall(0);
         vm.stopPrank();
     }
+
+    // ─── Tipping ─────────────────────────────────────────────
+
+    function test_tip() public {
+        vm.prank(creator);
+        registry.registerTool("Oracle", "https://api.com", "Prices", 10_000);
+
+        // Caller tips the tool
+        vm.startPrank(caller);
+        usdc.approve(address(registry), 50_000);
+        registry.tip(0, 50_000);
+        vm.stopPrank();
+
+        // Check state
+        ToolRegistry.Tool memory t = registry.getTool(0);
+        assertEq(t.totalTips, 50_000);
+        assertEq(registry.balances(creator), 50_000);
+        assertEq(usdc.balanceOf(caller), 950_000);
+    }
+
+    function test_multipleTips() public {
+        vm.prank(creator);
+        registry.registerTool("Oracle", "https://api.com", "Prices", 10_000);
+
+        vm.startPrank(caller);
+        usdc.approve(address(registry), 100_000);
+        registry.tip(0, 25_000);
+        registry.tip(0, 25_000);
+        registry.tip(0, 25_000);
+        vm.stopPrank();
+
+        ToolRegistry.Tool memory t = registry.getTool(0);
+        assertEq(t.totalTips, 75_000);
+        assertEq(registry.balances(creator), 75_000);
+    }
+
+    function test_revert_tipZero() public {
+        vm.prank(creator);
+        registry.registerTool("Oracle", "https://api.com", "Prices", 10_000);
+
+        vm.startPrank(caller);
+        usdc.approve(address(registry), 10_000);
+        vm.expectRevert(ToolRegistry.ZeroAmount.selector);
+        registry.tip(0, 0);
+        vm.stopPrank();
+    }
+
+    function test_revert_tipNonexistent() public {
+        vm.startPrank(caller);
+        usdc.approve(address(registry), 10_000);
+        vm.expectRevert(ToolRegistry.ToolNotFound.selector);
+        registry.tip(99, 10_000);
+        vm.stopPrank();
+    }
+
+    function test_emitTipped() public {
+        vm.prank(creator);
+        registry.registerTool("Oracle", "https://api.com", "Prices", 10_000);
+
+        vm.startPrank(caller);
+        usdc.approve(address(registry), 50_000);
+        vm.expectEmit(true, true, false, false);
+        emit ToolRegistry.Tipped(0, caller, 50_000, block.timestamp);
+        registry.tip(0, 50_000);
+        vm.stopPrank();
+    }
+
+    function test_tipAndWithdraw() public {
+        vm.prank(creator);
+        registry.registerTool("Oracle", "https://api.com", "Prices", 10_000);
+
+        // Caller tips
+        vm.startPrank(caller);
+        usdc.approve(address(registry), 50_000);
+        registry.tip(0, 50_000);
+        vm.stopPrank();
+
+        // Creator withdraws tip
+        vm.prank(creator);
+        registry.withdraw();
+
+        assertEq(usdc.balanceOf(creator), 50_000);
+        assertEq(registry.balances(creator), 0);
+    }
 }

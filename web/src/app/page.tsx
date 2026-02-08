@@ -34,6 +34,8 @@ export default function Home() {
   const [newTool, setNewTool] = useState({ name: '', endpoint: '', description: '', price: '', category: 'utility' });
   const [demoResponse, setDemoResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tippingToolId, setTippingToolId] = useState<bigint | null>(null);
+  const [tipAmount, setTipAmount] = useState('');
 
   // Read user's earnings balance
   const { data: userBalance } = useReadContract({
@@ -136,6 +138,19 @@ export default function Home() {
       abi: REGISTRY_ABI,
       functionName: 'withdraw',
     });
+  };
+
+  const handleTip = async () => {
+    if (!tipAmount || !tippingToolId) return;
+    const amountInMicro = parseUnits(tipAmount, 6);
+    writeContract({
+      address: REGISTRY_ADDRESS,
+      abi: REGISTRY_ABI,
+      functionName: 'tip',
+      args: [tippingToolId, amountInMicro],
+    });
+    setTippingToolId(null);
+    setTipAmount('');
   };
 
   const tryTool = async (endpoint: string) => {
@@ -349,6 +364,15 @@ export default function Home() {
                   >
                     Try (402) →
                   </button>
+                  {isConnected && (
+                    <button
+                      onClick={() => setTippingToolId(tool.id)}
+                      className="px-3 py-2 bg-gray-800 hover:bg-pink-500/20 hover:text-pink-400 rounded-lg text-sm transition border border-transparent hover:border-pink-500/50"
+                      title="Tip this tool"
+                    >
+                      💝
+                    </button>
+                  )}
                   <a
                     href={`https://sepolia.basescan.org/address/${REGISTRY_ADDRESS}`}
                     target="_blank"
@@ -361,6 +385,49 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+        {/* Tip Modal */}
+        {tippingToolId !== null && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl p-6 max-w-md w-full mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-cyan-400">💝 Tip Tool Creator</h3>
+                <button onClick={() => setTippingToolId(null)} className="text-gray-500 hover:text-white">✕</button>
+              </div>
+              <p className="text-gray-400 text-sm mb-4">
+                Show appreciation for <span className="text-white font-semibold">{demoTools.find(t => t.id === tippingToolId)?.name}</span>
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm text-gray-400 mb-1">Tip Amount (USDC)</label>
+                <input
+                  type="text"
+                  value={tipAmount}
+                  onChange={(e) => setTipAmount(e.target.value)}
+                  className="w-full px-4 py-2 bg-black/50 rounded-lg border border-cyan-900/50 focus:border-cyan-500 outline-none transition"
+                  placeholder="0.01"
+                />
+              </div>
+              <div className="flex gap-2 mb-4">
+                {['0.01', '0.05', '0.10'].map(amt => (
+                  <button
+                    key={amt}
+                    onClick={() => setTipAmount(amt)}
+                    className="flex-1 py-2 bg-gray-800 hover:bg-cyan-500/20 rounded-lg text-sm transition"
+                  >
+                    {amt} USDC
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleTip}
+                disabled={!tipAmount || isPending || isConfirming}
+                className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-500 font-semibold rounded-lg hover:from-pink-400 hover:to-purple-400 transition disabled:opacity-50"
+              >
+                {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Sending Tip...' : `Tip ${tipAmount || '0'} USDC`}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Demo response */}
         {demoResponse && (

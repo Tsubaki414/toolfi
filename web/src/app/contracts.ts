@@ -1,4 +1,4 @@
-export const REGISTRY_ADDRESS = '0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2' as const;
+export const REGISTRY_ADDRESS = '0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88' as const;
 export const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const;
 export const API_URL = 'https://toolfi.vercel.app';
 
@@ -17,6 +17,7 @@ export const REGISTRY_ABI = [
       { name: 'pricePerCall', type: 'uint256' },
       { name: 'totalCalls', type: 'uint256' },
       { name: 'totalEarned', type: 'uint256' },
+      { name: 'totalTips', type: 'uint256' },
       { name: 'active', type: 'bool' },
     ],
   },
@@ -58,6 +59,16 @@ export const REGISTRY_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [],
+    outputs: [],
+  },
+  {
+    name: 'tip',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'toolId', type: 'uint256' },
+      { name: 'amount', type: 'uint256' },
+    ],
     outputs: [],
   },
 ] as const;

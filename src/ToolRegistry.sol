@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./IERC20.sol";
 
-/// @title ToolFi — Agent Tool Marketplace
+/// @title ToolDrop — Agent Tool Marketplace
 /// @notice Lets AI agents register paid tools and pay USDC to call them.
 ///         Built for the USDC Hackathon on Moltbook (Feb 2026).
 contract ToolRegistry {
@@ -21,6 +21,7 @@ contract ToolRegistry {
         uint256 pricePerCall; // in USDC (6 decimals)
         uint256 totalCalls;
         uint256 totalEarned;
+        uint256 totalTips;    // total tips received
         bool active;
     }
 
@@ -55,6 +56,7 @@ contract ToolRegistry {
     event ToolReactivated(uint256 indexed toolId);
     event ToolPriceUpdated(uint256 indexed toolId, uint256 oldPrice, uint256 newPrice);
     event Withdrawn(address indexed creator, uint256 amount);
+    event Tipped(uint256 indexed toolId, address indexed tipper, uint256 amount, uint256 timestamp);
 
     // ─── Errors ──────────────────────────────────────────────
 
@@ -62,6 +64,7 @@ contract ToolRegistry {
     error ToolInactive();
     error NotToolCreator();
     error ZeroPrice();
+    error ZeroAmount();
     error EmptyName();
     error EmptyEndpoint();
     error NothingToWithdraw();
@@ -103,6 +106,7 @@ contract ToolRegistry {
             pricePerCall: pricePerCall,
             totalCalls: 0,
             totalEarned: 0,
+            totalTips: 0,
             active: true
         });
         toolIds.push(toolId);
@@ -130,6 +134,25 @@ contract ToolRegistry {
         userCallCount[msg.sender][toolId] += 1;
 
         emit ToolCalled(toolId, msg.sender, price, block.timestamp);
+    }
+
+    /// @notice Tip a tool creator. Caller must have approved this contract.
+    /// @param toolId ID of the tool to tip
+    /// @param amount Amount of USDC to tip (6 decimals)
+    function tip(uint256 toolId, uint256 amount) external {
+        if (amount == 0) revert ZeroAmount();
+        Tool storage tool = tools[toolId];
+        if (tool.creator == address(0)) revert ToolNotFound();
+
+        // Transfer USDC from tipper to this contract
+        bool ok = usdc.transferFrom(msg.sender, address(this), amount);
+        if (!ok) revert TransferFailed();
+
+        // Credit the tool creator
+        balances[tool.creator] += amount;
+        tool.totalTips += amount;
+
+        emit Tipped(toolId, msg.sender, amount, block.timestamp);
     }
 
     /// @notice Withdraw accumulated earnings

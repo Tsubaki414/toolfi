@@ -1,8 +1,8 @@
-# ToolFi — Agent Tool Marketplace with USDC Payments
+# ToolDrop — Agent Tool Marketplace with USDC Payments
 
 ## TL;DR
 
-ToolFi is an on-chain marketplace where AI agents can publish, discover, and pay for each other's tools using USDC. Any agent can register a paid API tool on Base Sepolia, and any other agent can discover and call it — paying USDC per use, with every transaction settled trustlessly on-chain.
+ToolDrop is an on-chain marketplace where AI agents can publish, discover, and pay for each other's tools using USDC. Any agent can register a paid API tool on Base Sepolia, and any other agent can discover and call it — paying USDC per use, with every transaction settled trustlessly on-chain.
 
 ## The Problem
 
@@ -10,7 +10,7 @@ AI agents increasingly need to exchange services. An agent with great research c
 
 ## The Solution
 
-ToolFi provides three things:
+ToolDrop provides three things:
 
 1. **Discovery** — Tools are registered on-chain with name, endpoint, description, and price. Any agent can query the registry.
 2. **Payment** — USDC-based pay-per-call via an x402-style flow. Call an API → get 402 → pay on-chain → call again with proof → get data.
@@ -19,11 +19,11 @@ ToolFi provides three things:
 ## How It Works
 
 ```
-Agent → GET /api/price?symbol=ETH
+Agent → GET /api/rugcheck?token=0x...&chain=1
 Server → 402 Payment Required { contract, toolId, price }
-Agent → approve USDC + payForCall(0) on-chain
-Agent → GET /api/price + X-Payment-Tx: 0x...
-Server → verifies on-chain → returns live price data
+Agent → approve USDC + payForCall(3) on-chain
+Agent → GET /api/rugcheck + X-Payment-Tx: 0x...
+Server → verifies on-chain → returns rug pull analysis
 ```
 
 ## What We Built
@@ -36,14 +36,25 @@ Server → verifies on-chain → returns live price data
 - 18 comprehensive unit tests, all passing
 - Deployed on Base Sepolia: `0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2`
 
-### Demo API Server
-Three working tools that demonstrate the payment flow:
-- **Crypto Price Oracle** (0.001 USDC/call) — Live token prices via DexScreener
-- **Wallet Risk Scanner** (0.005 USDC/call) — On-chain wallet analysis with risk scoring
-- **News Digest** (0.002 USDC/call) — Crypto news aggregation
+### Live Tools (5 registered on-chain)
+
+| Tool | Price | What it does |
+|------|-------|--------------|
+| **Crypto Price Oracle** | 0.001 USDC | Live token prices via DexScreener |
+| **Wallet Risk Scanner** | 0.005 USDC | On-chain wallet analysis with risk scoring |
+| **News Digest** | 0.002 USDC | Crypto news aggregation |
+| **Rug Pull Scanner** | 0.003 USDC | Detect honeypots, hidden owners, tax issues (GoPlus API) |
+| **Bridge Router** | 0.002 USDC | Find optimal cross-chain routes (Li.Fi aggregator) |
+
+### Web Interface
+- Browse tools by category (Blockchain, Data, AI, Utility)
+- Connect wallet (RainbowKit)
+- Register your own tools
+- View and withdraw earnings
+- Try any tool (see 402 payment flow)
 
 ### OpenClaw Skill
-Full SKILL.md with usage documentation, making ToolFi installable and usable by any OpenClaw agent.
+Full SKILL.md with usage documentation, making ToolDrop installable and usable by any OpenClaw agent.
 
 ## Why USDC Makes This Possible
 
@@ -57,15 +68,16 @@ Full SKILL.md with usage documentation, making ToolFi installable and usable by 
 - **Contract:** Solidity 0.8.20 + Foundry (forge)
 - **Chain:** Base Sepolia (84532)
 - **API:** Node.js + Express + ethers.js
+- **Frontend:** Next.js + Tailwind + RainbowKit
 - **Payment:** USDC + x402-style flow
-- **Hosting:** Vercel (API) + Base Sepolia (contract)
+- **External APIs:** GoPlus Security, Li.Fi, DexScreener
 
 ## Links
 
-- **GitHub:** https://github.com/Tsubaki414/toolfi
+- **Live Demo:** https://web-ten-alpha-81.vercel.app
 - **API:** https://toolfi.vercel.app
-- **Contract on BaseScan:** https://sepolia.basescan.org/address/0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2
-- **OpenClaw Skill:** See `skill/SKILL.md` in the repo
+- **GitHub:** https://github.com/Tsubaki414/toolfi
+- **Contract:** https://sepolia.basescan.org/address/0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2
 
 ## Track
 
