@@ -195,18 +195,38 @@ export default function Home() {
         </header>
 
         {/* Hero */}
-        <section className="max-w-6xl mx-auto px-6 py-16 text-center">
-          <div className="inline-block mb-4 px-4 py-1 bg-cyan-400/10 border border-cyan-400/30 rounded-full text-cyan-400 text-sm">
-            Powered by USDC on Base
+        <section className="max-w-6xl mx-auto px-6 py-20 text-center">
+          <div className="inline-block mb-6 px-4 py-1 bg-cyan-400/10 border border-cyan-400/30 rounded-full text-cyan-400 text-sm">
+            The API marketplace for AI agents
           </div>
-          <h2 className="text-5xl font-bold mb-4">
+          <h2 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+            <span className="text-white">APIs that </span>
             <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              Agent Tool Marketplace
+              pay themselves
             </span>
           </h2>
-          <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-            Discover, publish, and pay for AI agent tools — all on-chain with USDC
+          <p className="text-xl text-gray-400 mb-4 max-w-2xl mx-auto">
+            Agents discover tools. Agents pay USDC. Every call settles on-chain.
           </p>
+          <p className="text-gray-500 mb-8 max-w-xl mx-auto">
+            No API keys. No accounts. No humans in the loop.
+          </p>
+          
+          {/* Stats */}
+          <div className="flex justify-center gap-8 mb-10">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400">5</div>
+              <div className="text-sm text-gray-500">Tools Live</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400">x402</div>
+              <div className="text-sm text-gray-500">Protocol</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400">Base</div>
+              <div className="text-sm text-gray-500">Network</div>
+            </div>
+          </div>
           <div className="flex gap-4 justify-center">
             {isConnected ? (
               <button
@@ -362,7 +382,7 @@ export default function Home() {
                     onClick={() => tryTool(tool.endpoint)}
                     className="flex-1 py-2 bg-gray-800 hover:bg-cyan-500/20 hover:text-cyan-400 rounded-lg text-sm transition border border-transparent hover:border-cyan-500/50"
                   >
-                    Try (402) →
+                    Try It →
                   </button>
                   {isConnected && (
                     <button
@@ -464,9 +484,9 @@ export default function Home() {
         {/* CTA */}
         <section className="max-w-6xl mx-auto px-6 py-16 text-center">
           <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30 rounded-2xl p-12">
-            <h3 className="text-3xl font-bold mb-4">Build for Agents</h3>
+            <h3 className="text-3xl font-bold mb-4">List Your API</h3>
             <p className="text-gray-400 mb-6 max-w-xl mx-auto">
-              Got a useful API? Register it on ToolDrop and let agents pay you in USDC for every call.
+              Got a useful API? Register it on ToolDrop. Set your price. Get paid in USDC every time an agent calls it.
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
               <a
@@ -474,14 +494,14 @@ export default function Home() {
                 target="_blank"
                 className="px-6 py-3 bg-cyan-500 font-semibold rounded-lg hover:bg-cyan-400 transition"
               >
-                Get Testnet USDC
+                Start Building →
               </a>
               <a
-                href={`https://sepolia.basescan.org/address/${REGISTRY_ADDRESS}`}
+                href="https://github.com/Tsubaki414/toolfi#readme"
                 target="_blank"
                 className="px-6 py-3 border border-cyan-500/50 text-cyan-400 rounded-lg hover:bg-cyan-500/10 transition"
               >
-                View Contract
+                Read the Docs
               </a>
             </div>
           </div>
@@ -491,10 +511,7 @@ export default function Home() {
         <footer className="border-t border-gray-800/50 py-8">
           <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
             <div>
-              Built for the{' '}
-              <a href="https://moltbook.com/m/usdc" target="_blank" className="text-cyan-400 hover:underline">
-                USDC Hackathon
-              </a>
+              ToolDrop — The API marketplace for AI agents
             </div>
             <div className="flex gap-6">
               <a href={`https://sepolia.basescan.org/address/${REGISTRY_ADDRESS}`} target="_blank" className="hover:text-cyan-400 transition">
@@ -502,6 +519,9 @@ export default function Home() {
               </a>
               <a href="https://github.com/Tsubaki414/toolfi" target="_blank" className="hover:text-cyan-400 transition">
                 GitHub
+              </a>
+              <a href="https://x.com/snowmaker3575" target="_blank" className="hover:text-cyan-400 transition">
+                Twitter
               </a>
             </div>
           </div>
