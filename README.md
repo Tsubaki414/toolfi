@@ -1,10 +1,17 @@
-# ToolFi — Agent Tool Marketplace with USDC Payments
+# ToolFi — Open API Marketplace for AI Agents
 
-An on-chain marketplace where AI agents can discover, publish, and pay for tools using USDC on Base Sepolia. Think "app store for agent tools" with trustless payment settlement.
+An on-chain marketplace where AI agents discover, publish, and pay for tools using USDC. Think "RapidAPI for AI Agents" with trustless payment settlement on Base.
 
-🌐 **[Live Demo](https://web-ten-alpha-81.vercel.app)** · 📡 **[API](https://toolfi.vercel.app)** · 📜 **[Contract](https://sepolia.basescan.org/address/0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2)**
+🌐 **[Live Demo](https://web-ten-alpha-81.vercel.app)** · 📡 **[API](https://toolfi.vercel.app)** · 🤖 **[MCP Server](mcp-server/)** · 📜 **[Contract](https://sepolia.basescan.org/address/0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88)**
 
-Built for the [USDC Hackathon](https://moltbook.com/m/usdc) on Moltbook.
+## Why ToolFi?
+
+AI agents need data. APIs cost money. Current solutions:
+- ❌ Hardcoded API keys (security risk)
+- ❌ Centralized billing (counterparty risk)
+- ❌ Manual integration (doesn't scale)
+
+**ToolFi** = Pay-per-call APIs with on-chain settlement. Agents pay USDC, creators earn USDC. No keys, no accounts, no trust required.
 
 ## How It Works
 
@@ -12,43 +19,65 @@ Built for the [USDC Hackathon](https://moltbook.com/m/usdc) on Moltbook.
 Agent → GET /api/price?symbol=ETH
                 ↓
 Server → 402 Payment Required
-         { contract, toolId, price, instructions }
+         { toolId, price, paymentInstructions }
                 ↓
-Agent → approve USDC → payForCall(toolId) on-chain
+Agent → USDC.approve() → Registry.payForCall(toolId)
                 ↓
-Agent → GET /api/price?symbol=ETH
-         Header: X-Payment-Tx: 0x<tx_hash>
+Agent → Retry with X-Payment-Tx header
                 ↓
-Server → verifies payment on-chain → returns data
+Server → Verify on-chain → Return data
 ```
 
-Every payment is recorded immutably on Base Sepolia. Tool creators earn USDC for every call.
+## Available Tools
 
-## Quick Start
+| Tool | Price | What it does |
+|------|-------|--------------|
+| Crypto Price Oracle | 0.001 USDC | Real-time prices via DexScreener |
+| Rug Pull Scanner | 0.003 USDC | Token security via GoPlus |
+| Bridge Router | 0.002 USDC | Cross-chain routes via Li.Fi |
+| DeFi Yield Finder | 0.002 USDC | Best yields via DefiLlama |
+| Swap Router | 0.002 USDC | DEX aggregation via Li.Fi |
+| Trending Coins | 0.001 USDC | What's hot via CoinGecko |
+| Protocol TVL | 0.001 USDC | DeFi TVL data via DefiLlama |
+| Gas Tracker | 0.0005 USDC | Gas prices for EVM chains |
+| Wallet Risk Scanner | 0.005 USDC | Address risk analysis |
+| News Digest | 0.002 USDC | Crypto news summary |
 
-### Browse Tools
+## Integration Options
+
+### Option 1: HTTP API (Any Agent)
 
 ```bash
-curl https://toolfi-api.vercel.app/
+# Pay on-chain, then call with payment proof
+curl -H "X-Payment-Tx: 0x..." "https://toolfi.vercel.app/api/price?symbol=ETH"
 ```
 
-### Call a Tool (Pay & Use)
+### Option 2: MCP Server (Claude Desktop)
 
 ```bash
-# 1. Approve USDC spending
-cast send $USDC "approve(address,uint256)" $REGISTRY 1000 \
-  --rpc-url https://sepolia.base.org --private-key $KEY
-
-# 2. Pay for the tool call
-cast send $REGISTRY "payForCall(uint256)" 0 \
-  --rpc-url https://sepolia.base.org --private-key $KEY
-
-# 3. Use the tool with payment proof
-curl -H "X-Payment-Tx: $TX_HASH" \
-  "https://toolfi-api.vercel.app/api/price?symbol=ethereum"
+cd mcp-server
+uv venv && source .venv/bin/activate
+uv pip install -e .
 ```
 
-### Publish Your Own Tool
+Add to Claude Desktop config:
+```json
+{
+  "mcpServers": {
+    "toolfi": {
+      "command": "/path/to/.venv/bin/python",
+      "args": ["-m", "src.server"],
+      "cwd": "/path/to/mcp-server"
+    }
+  }
+}
+```
+
+Then ask Claude: *"Check the security of token 0x... on Base"*
+
+## For Tool Creators
+
+Publish your API and earn USDC:
 
 ```bash
 cast send $REGISTRY \
@@ -57,86 +86,57 @@ cast send $REGISTRY \
   --rpc-url https://sepolia.base.org --private-key $KEY
 ```
 
-Price uses USDC 6 decimals: `10000` = $0.01/call.
+Price in 6 decimals: `10000` = $0.01/call
 
-### Withdraw Earnings
-
+Withdraw earnings:
 ```bash
-cast send $REGISTRY "withdraw()" \
-  --rpc-url https://sepolia.base.org --private-key $KEY
+cast send $REGISTRY "withdraw()" --rpc-url https://sepolia.base.org
 ```
-
-## Demo Tools
-
-| ID | Tool | Price | Endpoint |
-|----|------|-------|----------|
-| 0 | Crypto Price Oracle | 0.001 USDC | `/api/price?symbol=<token>` |
-| 1 | Wallet Risk Scanner | 0.005 USDC | `/api/risk?address=<0x...>` |
-| 2 | News Digest | 0.002 USDC | `/api/news?topic=<keyword>` |
 
 ## Contract
 
-| Field | Value |
-|-------|-------|
+| | |
+|-|-|
 | Chain | Base Sepolia (84532) |
 | USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| Registry | [`0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2`](https://sepolia.basescan.org/address/0x7d6Da6895Be057046E4Cfc19321AF0CF3B30ffb2) |
+| Registry | [`0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88`](https://sepolia.basescan.org/address/0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88) |
 
-### Functions
+## Project Structure
 
-**Users:** `payForCall(toolId)` · `getTool(toolId)` · `getTools(offset, limit)` · `getActiveTools(offset, limit)` · `userCallCount(user, toolId)`
-
-**Creators:** `registerTool(name, endpoint, description, price)` · `updatePrice(toolId, newPrice)` · `deactivateTool(toolId)` · `reactivateTool(toolId)` · `withdraw()` · `balances(address)`
+```
+toolfi/
+├── api/           # Vercel serverless API
+├── web/           # Next.js frontend
+├── mcp-server/    # Python MCP server for Claude
+├── src/           # Solidity contracts
+├── skill/         # OpenClaw skill spec
+└── script/        # Deployment scripts
+```
 
 ## Development
 
 ```bash
-# Build
+# Contracts
 forge build
-
-# Test (18 tests)
 forge test -v
 
-# Deploy locally
-anvil --chain-id 84532 &
-forge script script/Deploy.s.sol:DeployScript \
-  --rpc-url http://127.0.0.1:8545 --broadcast
-
-# Run API server
+# API
 cd api && npm install && npm start
+
+# MCP Server
+cd mcp-server && uv pip install -e . && python -m src.server
 ```
 
-## Why USDC?
+## Roadmap
 
-- **Stable** — no price risk for tool creators
-- **Programmable** — smart contract escrow and payment splitting
-- **Widely held** — the most used stablecoin in the ecosystem
-- **Base native** — fast, cheap transactions on Base L2
-
-## Architecture
-
-```
-┌─────────────┐     ┌──────────────┐     ┌────────────────┐
-│   AI Agent   │────▸│  ToolFi API  │────▸│  Base Sepolia   │
-│              │◂────│  (Express)   │◂────│  ToolRegistry   │
-└─────────────┘     └──────────────┘     │  + USDC token   │
-                                          └────────────────┘
-```
-
-1. Agent discovers tools via API or on-chain
-2. API returns 402 with payment instructions
-3. Agent approves USDC and calls `payForCall()` on-chain
-4. Agent retries with `X-Payment-Tx` header
-5. API verifies payment, serves data
-6. Creator withdraws accumulated USDC earnings
-
-## OpenClaw Skill
-
-See [`skill/SKILL.md`](skill/SKILL.md) for the full OpenClaw skill documentation, including installation and usage for AI agents.
-
-## Getting Testnet USDC
-
-Claim 20 free testnet USDC from [Circle's Faucet](https://faucet.circle.com/) (select Base Sepolia).
+- [x] Core registry contract
+- [x] Web API with 10 tools
+- [x] MCP Server for Claude Desktop
+- [ ] Mainnet deployment
+- [ ] Creator dashboard
+- [ ] Agent SDK (Python/TypeScript)
+- [ ] Idempotency keys
+- [ ] Usage analytics
 
 ## License
 
