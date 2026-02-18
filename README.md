@@ -1,17 +1,26 @@
-# ToolFi — Open API Marketplace for AI Agents
+# ToolFi — API Marketplace for AI Agents
 
-An on-chain marketplace where AI agents discover, publish, and pay for tools using USDC. Think "RapidAPI for AI Agents" with trustless payment settlement on Base.
+> "The next unicorn is an API marketplace for agents... where the right API should be selected by Claude and connected automatically" — [@auralix4](https://twitter.com/auralix4)
 
-🌐 **[Live Demo](https://web-ten-alpha-81.vercel.app)** · 📡 **[API](https://toolfi.vercel.app)** · 🤖 **[MCP Server](mcp-server/)** · 📜 **[Contract](https://sepolia.basescan.org/address/0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88)**
+API marketplaces exist, but they're built for human developers. ToolFi is built for **AI workflows** — agents discover, select, and pay for APIs automatically, without human intervention.
 
-## Why ToolFi?
+🌐 **[Website](https://toolfi.dev)** · 📡 **[API](https://toolfi.vercel.app)** · 📜 **[Contract](https://sepolia.basescan.org/address/0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88)** · 🗺️ **[Roadmap](ROADMAP.md)**
 
-AI agents need data. APIs cost money. Current solutions:
-- ❌ Hardcoded API keys (security risk)
-- ❌ Centralized billing (counterparty risk)
-- ❌ Manual integration (doesn't scale)
+## The Problem
 
-**ToolFi** = Pay-per-call APIs with on-chain settlement. Agents pay USDC, creators earn USDC. No keys, no accounts, no trust required.
+AI agents need external data (prices, security checks, routes). Current solutions:
+- **RapidAPI, etc.** — Built for humans. Agents can't browse and click "Subscribe"
+- **Hardcoded keys** — Security risk, doesn't scale
+- **Manual integration** — Every new tool needs human setup
+
+## The Solution
+
+**ToolFi** = APIs that agents can discover and use autonomously.
+
+1. **Discovery** — Agents find tools via `.well-known/mcp.json`, MCP registries, semantic search
+2. **Selection** — Rich descriptions help agents pick the right tool
+3. **Payment** — USDC on Base, no API keys, just pay and use
+4. **Data** — Structured responses optimized for LLM consumption
 
 ## How It Works
 
