@@ -1,0 +1,48 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.Tsubaki414/toolfi",
+  "description": "Open API Marketplace for AI Agents. Crypto data tools with USDC payments on Base. Token security, DeFi yields, bridge routes, swap quotes, gas tracking.",
+  "version": "1.2.0",
+  "repository": "https://github.com/Tsubaki414/toolfi",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://web-ten-alpha-81.vercel.app/api/mcp"
+    }
+  ],
+  "tools": [
+    {
+      "name": "crypto_price",
+      "description": "Get real-time cryptocurrency prices with 24h change"
+    },
+    {
+      "name": "token_security",
+      "description": "Detect honeypots, rug pulls, and token risks via GoPlus"
+    },
+    {
+      "name": "defi_yields",
+      "description": "Find top DeFi yields across all chains via DefiLlama"
+    },
+    {
+      "name": "bridge_quote",
+      "description": "Get cross-chain bridge routes via Li.Fi"
+    },
+    {
+      "name": "swap_quote",
+      "description": "Get DEX swap routes via Li.Fi"
+    },
+    {
+      "name": "trending_coins",
+      "description": "Get trending cryptocurrencies from CoinGecko"
+    },
+    {
+      "name": "protocol_tvl",
+      "description": "Get DeFi protocol TVL data from DefiLlama"
+    },
+    {
+      "name": "gas_tracker",
+      "description": "Get real-time gas prices for EVM chains"
+    }
+  ],
+  "keywords": ["crypto", "defi", "blockchain", "api", "usdc", "base", "security", "bridge", "swap"]
+}
