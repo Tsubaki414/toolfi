@@ -34,9 +34,21 @@ const NEXT_ID_KEY = 'toolfi:next_id';
 
 async function getAllTools() {
   if (!redis) return [];
-  const tools = await redis.hgetall(TOOLS_KEY);
-  if (!tools) return [];
-  return Object.values(tools).map(t => typeof t === 'string' ? JSON.parse(t) : t);
+  try {
+    const tools = await redis.hgetall(TOOLS_KEY);
+    if (!tools) return [];
+    return Object.values(tools).map(t => {
+      try {
+        return typeof t === 'string' ? JSON.parse(t) : t;
+      } catch (e) {
+        console.error('Failed to parse tool:', t);
+        return null;
+      }
+    }).filter(Boolean);
+  } catch (e) {
+    console.error('Redis getAllTools error:', e.message);
+    return [];
+  }
 }
 
 async function getTool(id) {
@@ -929,9 +941,11 @@ app.get('/api/tools', async (req, res) => {
       count: tools.length,
       tools,
       dbConnected: !!redis,
+      redisUrl: process.env.KV_REST_API_URL ? 'configured' : 'not set',
     });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to fetch tools', detail: e.message });
+    console.error('/api/tools error:', e);
+    res.status(500).json({ error: 'Failed to fetch tools', detail: e.message, stack: e.stack });
   }
 });
 
@@ -1060,15 +1074,16 @@ app.get('/', async (req, res) => {
     registry: REGISTRY_ADDRESS || 'not deployed yet',
     chain: 'Base Sepolia (84532)',
     usdc: USDC_ADDRESS,
+    dbConnected: !!redis,
     tools: {
       builtin: BUILTIN_TOOLS,
       uploaded: uploadedTools.map(t => ({
         id: t.id,
         name: t.name,
         endpoint: t.endpoint,
-        price: `${(t.pricePerCall / 1e6).toFixed(6)} USDC`,
-        category: t.category,
-        creator: t.creator,
+        price: `${((t.pricePerCall || 1000) / 1e6).toFixed(6)} USDC`,
+        category: t.category || 'custom',
+        creator: t.creator || 'anonymous',
       })),
       total: BUILTIN_TOOLS.length + uploadedTools.length,
     },
