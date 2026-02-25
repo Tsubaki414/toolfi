@@ -11,20 +11,33 @@
 import express from 'express';
 import cors from 'cors';
 import { ethers } from 'ethers';
-import { Redis } from '@upstash/redis';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ─── Upstash Redis ───────────────────────────────────────
+// ─── Upstash Redis (lazy init) ───────────────────────────
 
 let redis = null;
-if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-  redis = new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  });
+let redisInitialized = false;
+
+async function getRedis() {
+  if (redisInitialized) return redis;
+  redisInitialized = true;
+  
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    try {
+      const { Redis } = await import('@upstash/redis');
+      redis = new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
+      });
+      console.log('Redis initialized successfully');
+    } catch (e) {
+      console.error('Failed to initialize Redis:', e.message);
+    }
+  }
+  return redis;
 }
 
 const TOOLS_KEY = 'toolfi:tools';
@@ -33,9 +46,10 @@ const NEXT_ID_KEY = 'toolfi:next_id';
 // ─── Tool Storage Functions ──────────────────────────────
 
 async function getAllTools() {
-  if (!redis) return [];
+  const r = await getRedis();
+  if (!r) return [];
   try {
-    const tools = await redis.hgetall(TOOLS_KEY);
+    const tools = await r.hgetall(TOOLS_KEY);
     if (!tools) return [];
     return Object.values(tools).map(t => {
       try {
@@ -52,15 +66,17 @@ async function getAllTools() {
 }
 
 async function getTool(id) {
-  if (!redis) return null;
-  const tool = await redis.hget(TOOLS_KEY, String(id));
+  const r = await getRedis();
+  if (!r) return null;
+  const tool = await r.hget(TOOLS_KEY, String(id));
   if (!tool) return null;
   return typeof tool === 'string' ? JSON.parse(tool) : tool;
 }
 
 async function createTool(toolData) {
-  if (!redis) throw new Error('Database not configured');
-  const id = await redis.incr(NEXT_ID_KEY);
+  const r = await getRedis();
+  if (!r) throw new Error('Database not configured');
+  const id = await r.incr(NEXT_ID_KEY);
   // User-uploaded tools start at ID 1000 to avoid conflicts with hardcoded tools
   const toolId = 1000 + id;
   const tool = {
@@ -71,12 +87,13 @@ async function createTool(toolData) {
     totalCalls: 0,
     active: true,
   };
-  await redis.hset(TOOLS_KEY, { [String(toolId)]: JSON.stringify(tool) });
+  await r.hset(TOOLS_KEY, { [String(toolId)]: JSON.stringify(tool) });
   return tool;
 }
 
 async function updateTool(id, updates) {
-  if (!redis) throw new Error('Database not configured');
+  const r = await getRedis();
+  if (!r) throw new Error('Database not configured');
   const existing = await getTool(id);
   if (!existing) return null;
   const updated = {
@@ -85,13 +102,14 @@ async function updateTool(id, updates) {
     id: existing.id, // Don't allow ID change
     updatedAt: new Date().toISOString(),
   };
-  await redis.hset(TOOLS_KEY, { [String(id)]: JSON.stringify(updated) });
+  await r.hset(TOOLS_KEY, { [String(id)]: JSON.stringify(updated) });
   return updated;
 }
 
 async function deleteTool(id) {
-  if (!redis) throw new Error('Database not configured');
-  await redis.hdel(TOOLS_KEY, String(id));
+  const r = await getRedis();
+  if (!r) throw new Error('Database not configured');
+  await r.hdel(TOOLS_KEY, String(id));
   return true;
 }
 
@@ -936,11 +954,12 @@ app.get('/api/gas', requirePayment(9, 'Gas Tracker', 500), async (req, res) => {
 // List all user-uploaded tools
 app.get('/api/tools', async (req, res) => {
   try {
+    const r = await getRedis();
     const tools = await getAllTools();
     res.json({
       count: tools.length,
       tools,
-      dbConnected: !!redis,
+      dbConnected: !!r,
       redisUrl: process.env.KV_REST_API_URL ? 'configured' : 'not set',
     });
   } catch (e) {
@@ -1061,7 +1080,9 @@ const BUILTIN_TOOLS = [
 app.get('/', async (req, res) => {
   // Fetch user-uploaded tools
   let uploadedTools = [];
+  let r = null;
   try {
+    r = await getRedis();
     uploadedTools = await getAllTools();
   } catch (e) {
     console.error('Failed to fetch uploaded tools:', e.message);
@@ -1074,7 +1095,7 @@ app.get('/', async (req, res) => {
     registry: REGISTRY_ADDRESS || 'not deployed yet',
     chain: 'Base Sepolia (84532)',
     usdc: USDC_ADDRESS,
-    dbConnected: !!redis,
+    dbConnected: !!r,
     tools: {
       builtin: BUILTIN_TOOLS,
       uploaded: uploadedTools.map(t => ({
