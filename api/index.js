@@ -1134,31 +1134,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-// Debug endpoint for Redis connection
-app.get('/api/debug/redis', async (req, res) => {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
-  
-  const result = {
-    urlSet: !!url,
-    tokenSet: !!token,
-    urlPrefix: url ? url.substring(0, 30) + '...' : null,
-    tokenPrefix: token ? token.substring(0, 10) + '...' : null,
-  };
-  
-  try {
-    const r = await getRedis();
-    result.redisInitialized = !!r;
-    if (r) {
-      const pong = await r.ping();
-      result.ping = pong;
-    }
-  } catch (e) {
-    result.error = e.message;
-  }
-  
-  res.json(result);
-});
+// Debug endpoint removed in production
 
 // ─── Export for Vercel ───────────────────────────────────
 
