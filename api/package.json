@@ -8,13 +8,21 @@
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "keywords": ["toolfi", "usdc", "x402", "mcp", "agent"],
+  "keywords": [
+    "toolfi",
+    "usdc",
+    "x402",
+    "mcp",
+    "agent"
+  ],
   "author": "ssmonica",
   "license": "MIT",
   "dependencies": {
+    "@upstash/redis": "^1.36.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "mcp-handler": "^1.0.7"
   }
 }

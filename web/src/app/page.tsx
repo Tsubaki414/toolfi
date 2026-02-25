@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
@@ -36,6 +36,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [tippingToolId, setTippingToolId] = useState<bigint | null>(null);
   const [tipAmount, setTipAmount] = useState('');
+  const [uploadedTools, setUploadedTools] = useState<Tool[]>([]);
+  const [registerMode, setRegisterMode] = useState<'api' | 'onchain'>('api');
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   // Read user's earnings balance
   const { data: userBalance } = useReadContract({
@@ -112,13 +115,148 @@ export default function Home() {
       active: true,
       category: 'blockchain',
     },
+    {
+      id: 5n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'DeFi Yield Finder',
+      endpoint: `${API_URL}/api/yields?chain=ethereum&minApy=5&minTvl=1000000`,
+      description: 'Find top DeFi yields across all chains. Filter by APY, TVL, stablecoin pools. Powered by DefiLlama.',
+      pricePerCall: 2000n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+      category: 'data',
+    },
+    {
+      id: 6n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'Swap Router',
+      endpoint: `${API_URL}/api/swap?chain=1&fromToken=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&toToken=0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2&amount=1000000000`,
+      description: 'Find optimal swap routes across DEXs. Aggregates Uniswap, Sushiswap, Curve and more via Li.Fi.',
+      pricePerCall: 2000n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+      category: 'blockchain',
+    },
+    {
+      id: 7n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'Trending Coins',
+      endpoint: `${API_URL}/api/trending`,
+      description: 'Get top trending cryptocurrencies right now. Real-time data from CoinGecko.',
+      pricePerCall: 1000n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+      category: 'data',
+    },
+    {
+      id: 8n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'Protocol TVL',
+      endpoint: `${API_URL}/api/tvl?protocol=aave`,
+      description: 'Get Total Value Locked data for DeFi protocols. Track TVL changes and compare protocols.',
+      pricePerCall: 1000n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+      category: 'data',
+    },
+    {
+      id: 9n,
+      creator: '0x00C76DD3435ce72c6f33A5eD7036a320FE8EffE6',
+      name: 'Gas Tracker',
+      endpoint: `${API_URL}/api/gas?chain=1`,
+      description: 'Real-time gas prices for Ethereum, Polygon, Arbitrum. Get safe, standard, and fast estimates.',
+      pricePerCall: 500n,
+      totalCalls: 0n,
+      totalEarned: 0n,
+      active: true,
+      category: 'utility',
+    },
   ];
 
+  // Combine builtin + uploaded tools
+  const allTools = [...demoTools, ...uploadedTools];
   const filteredTools = selectedCategory === 'all' 
-    ? demoTools 
-    : demoTools.filter(t => t.category === selectedCategory);
+    ? allTools 
+    : allTools.filter(t => t.category === selectedCategory);
 
+  // Fetch uploaded tools on mount
+  const fetchUploadedTools = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/tools`);
+      const data = await res.json();
+      if (data.tools) {
+        const tools: Tool[] = data.tools.map((t: any) => ({
+          id: BigInt(t.id),
+          creator: t.creator || 'anonymous',
+          name: t.name,
+          endpoint: t.endpoint,
+          description: t.description || '',
+          pricePerCall: BigInt(t.pricePerCall || 1000),
+          totalCalls: BigInt(t.totalCalls || 0),
+          totalEarned: 0n,
+          active: t.active ?? true,
+          category: t.category || 'custom',
+        }));
+        setUploadedTools(tools);
+      }
+    } catch (e) {
+      console.error('Failed to fetch uploaded tools:', e);
+    }
+  };
+
+  // Load uploaded tools on component mount
+  useEffect(() => {
+    fetchUploadedTools();
+  }, []);
+
+  // Handle API-based upload (no blockchain transaction)
+  const handleApiUpload = async () => {
+    if (!newTool.name || !newTool.endpoint) {
+      alert('Name and endpoint are required');
+      return;
+    }
+    
+    setUploadStatus('Uploading...');
+    try {
+      const priceInMicro = newTool.price ? parseFloat(newTool.price) * 1e6 : 1000;
+      const res = await fetch(`${API_URL}/api/tools`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTool.name,
+          endpoint: newTool.endpoint,
+          description: newTool.description,
+          pricePerCall: Math.floor(priceInMicro),
+          category: newTool.category,
+          creator: address || 'anonymous',
+        }),
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setUploadStatus('✓ Tool uploaded successfully!');
+        setNewTool({ name: '', endpoint: '', description: '', price: '', category: 'utility' });
+        fetchUploadedTools(); // Refresh the list
+        setTimeout(() => setUploadStatus(null), 3000);
+      } else {
+        setUploadStatus(`Error: ${data.error || 'Upload failed'}`);
+      }
+    } catch (e) {
+      setUploadStatus('Error: Network error');
+    }
+  };
+
+  // Handle on-chain registration
   const handleRegister = async () => {
+    if (registerMode === 'api') {
+      return handleApiUpload();
+    }
+    
+    // On-chain registration
     if (!newTool.name || !newTool.endpoint || !newTool.description || !newTool.price) {
       alert('Please fill all fields');
       return;
@@ -215,7 +353,7 @@ export default function Home() {
           {/* Stats */}
           <div className="flex justify-center gap-8 mb-10">
             <div className="text-center">
-              <div className="text-3xl font-bold text-cyan-400">5</div>
+              <div className="text-3xl font-bold text-cyan-400">{allTools.length}</div>
               <div className="text-sm text-gray-500">Tools Live</div>
             </div>
             <div className="text-center">
@@ -248,6 +386,33 @@ export default function Home() {
           <section className="max-w-2xl mx-auto px-6 pb-12">
             <div className="bg-gray-900/50 backdrop-blur border border-cyan-900/50 rounded-2xl p-6">
               <h3 className="text-xl font-semibold mb-4 text-cyan-400">Register Your Tool</h3>
+              
+              {/* Mode Selector */}
+              <div className="flex gap-2 mb-6">
+                <button
+                  onClick={() => setRegisterMode('api')}
+                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                    registerMode === 'api'
+                      ? 'bg-cyan-500/20 border border-cyan-500 text-cyan-400'
+                      : 'bg-black/30 border border-gray-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  ⚡ Quick Upload
+                  <span className="block text-xs opacity-70">No gas fees</span>
+                </button>
+                <button
+                  onClick={() => setRegisterMode('onchain')}
+                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                    registerMode === 'onchain'
+                      ? 'bg-cyan-500/20 border border-cyan-500 text-cyan-400'
+                      : 'bg-black/30 border border-gray-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  ⛓️ On-Chain
+                  <span className="block text-xs opacity-70">Permanent record</span>
+                </button>
+              </div>
+              
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Tool Name</label>
@@ -302,11 +467,19 @@ export default function Home() {
                 </div>
                 <button
                   onClick={handleRegister}
-                  disabled={isPending || isConfirming}
+                  disabled={isPending || isConfirming || uploadStatus === 'Uploading...'}
                   className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 font-semibold rounded-lg hover:from-cyan-400 hover:to-blue-400 transition disabled:opacity-50 shadow-lg shadow-cyan-500/25"
                 >
-                  {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Registering...' : 'Register Tool'}
+                  {registerMode === 'api' 
+                    ? (uploadStatus === 'Uploading...' ? 'Uploading...' : '⚡ Upload Tool')
+                    : (isPending ? 'Confirm in Wallet...' : isConfirming ? 'Registering...' : '⛓️ Register On-Chain')
+                  }
                 </button>
+                {uploadStatus && (
+                  <p className={`text-sm text-center ${uploadStatus.startsWith('✓') ? 'text-cyan-400' : uploadStatus.startsWith('Error') ? 'text-red-400' : 'text-gray-400'}`}>
+                    {uploadStatus}
+                  </p>
+                )}
                 {isSuccess && (
                   <p className="text-cyan-400 text-sm text-center">✓ Tool registered successfully!</p>
                 )}
@@ -530,4 +703,3 @@ export default function Home() {
     </div>
   );
 }
-<!-- trigger rebuild Tue Feb 17 14:35:56 GMT 2026 -->

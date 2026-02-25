@@ -1,0 +1,11 @@
+# ToolFi - Open API Marketplace for AI Agents
+# https://toolfi.dev
+
+User-agent: *
+Allow: /
+
+# AI Agent Discovery
+# Tool registry: /.well-known/mcp.json
+# API: https://toolfi.vercel.app
+
+Sitemap: https://toolfi.dev/sitemap.xml

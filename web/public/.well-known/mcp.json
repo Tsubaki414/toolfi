@@ -1,0 +1,127 @@
+{
+  "name": "ToolFi",
+  "description": "Open API Marketplace for AI Agents. Pay-per-call crypto data tools with USDC on Base. No API keys, no accounts — just call and pay.",
+  "version": "1.2.0",
+  "homepage": "https://toolfi.dev",
+  "api": "https://toolfi.vercel.app",
+  "docs": "https://github.com/Tsubaki414/toolfi",
+  "protocol": "x402",
+  "chain": {
+    "name": "Base Sepolia",
+    "chainId": 84532,
+    "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "registry": "0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88"
+  },
+  "tools": [
+    {
+      "id": 0,
+      "name": "Crypto Price Oracle",
+      "description": "Real-time cryptocurrency prices with 24h change, market cap, and liquidity. Supports 1000+ tokens across all major chains.",
+      "endpoint": "https://toolfi.vercel.app/api/price",
+      "method": "GET",
+      "params": {"symbol": "Token symbol (e.g., bitcoin, ethereum)"},
+      "price": "0.001 USDC",
+      "category": "data"
+    },
+    {
+      "id": 1,
+      "name": "Wallet Risk Scanner",
+      "description": "Analyze any EVM wallet for risk signals and transaction patterns. Checks transaction history, contract interactions, and known addresses.",
+      "endpoint": "https://toolfi.vercel.app/api/risk",
+      "method": "GET",
+      "params": {"address": "Wallet address (0x...)"},
+      "price": "0.005 USDC",
+      "category": "blockchain"
+    },
+    {
+      "id": 2,
+      "name": "News Digest",
+      "description": "AI-curated crypto news with summaries from top sources. Filter by topic.",
+      "endpoint": "https://toolfi.vercel.app/api/news",
+      "method": "GET",
+      "params": {"topic": "News topic (e.g., defi, bitcoin, ethereum)"},
+      "price": "0.002 USDC",
+      "category": "data"
+    },
+    {
+      "id": 3,
+      "name": "Rug Pull Scanner",
+      "description": "Detect honeypots, hidden owners, tax mechanisms, and rug pull risks. Powered by GoPlus Security API.",
+      "endpoint": "https://toolfi.vercel.app/api/rugcheck",
+      "method": "GET",
+      "params": {"token": "Token contract address", "chain": "Chain ID (1=ETH, 56=BSC, 8453=Base)"},
+      "price": "0.003 USDC",
+      "category": "blockchain"
+    },
+    {
+      "id": 4,
+      "name": "Bridge Router",
+      "description": "Find optimal cross-chain bridge routes. Aggregates 30+ bridges via Li.Fi for best rates and speed.",
+      "endpoint": "https://toolfi.vercel.app/api/bridge",
+      "method": "GET",
+      "params": {"fromChain": "Source chain ID", "toChain": "Dest chain ID", "fromToken": "Source token", "toToken": "Dest token", "amount": "Amount in wei"},
+      "price": "0.002 USDC",
+      "category": "blockchain"
+    },
+    {
+      "id": 5,
+      "name": "DeFi Yield Finder",
+      "description": "Find top DeFi yields across all chains. Filter by APY, TVL, stablecoin pools. Powered by DefiLlama.",
+      "endpoint": "https://toolfi.vercel.app/api/yields",
+      "method": "GET",
+      "params": {"chain": "Chain name (optional)", "minApy": "Minimum APY %", "minTvl": "Minimum TVL in USD"},
+      "price": "0.002 USDC",
+      "category": "data"
+    },
+    {
+      "id": 6,
+      "name": "Swap Router",
+      "description": "Find optimal swap routes across DEXs. Aggregates Uniswap, Sushiswap, Curve and more via Li.Fi.",
+      "endpoint": "https://toolfi.vercel.app/api/swap",
+      "method": "GET",
+      "params": {"chain": "Chain ID", "fromToken": "Source token address", "toToken": "Dest token address", "amount": "Amount in wei"},
+      "price": "0.002 USDC",
+      "category": "blockchain"
+    },
+    {
+      "id": 7,
+      "name": "Trending Coins",
+      "description": "Get top trending cryptocurrencies right now. Real-time data from CoinGecko.",
+      "endpoint": "https://toolfi.vercel.app/api/trending",
+      "method": "GET",
+      "params": {},
+      "price": "0.001 USDC",
+      "category": "data"
+    },
+    {
+      "id": 8,
+      "name": "Protocol TVL",
+      "description": "Get Total Value Locked data for DeFi protocols. Track TVL changes and compare protocols.",
+      "endpoint": "https://toolfi.vercel.app/api/tvl",
+      "method": "GET",
+      "params": {"protocol": "Protocol name (e.g., aave, uniswap)"},
+      "price": "0.001 USDC",
+      "category": "data"
+    },
+    {
+      "id": 9,
+      "name": "Gas Tracker",
+      "description": "Real-time gas prices for Ethereum, Polygon, Arbitrum. Get safe, standard, and fast estimates.",
+      "endpoint": "https://toolfi.vercel.app/api/gas",
+      "method": "GET",
+      "params": {"chain": "Chain ID (1=ETH, 137=Polygon, 42161=Arbitrum)"},
+      "price": "0.0005 USDC",
+      "category": "utility"
+    }
+  ],
+  "paymentFlow": {
+    "description": "Call any endpoint → get 402 with payment instructions → pay on-chain → retry with X-Payment-Tx header",
+    "steps": [
+      "1. Call endpoint without payment → receive 402 Payment Required",
+      "2. Approve USDC: usdc.approve(registry, amount)",
+      "3. Pay: registry.payForCall(toolId)",
+      "4. Retry request with header X-Payment-Tx: <tx_hash>"
+    ]
+  },
+  "keywords": ["ai-agent", "api", "crypto", "defi", "blockchain", "mcp", "usdc", "base", "tools"]
+}

@@ -1,0 +1,43 @@
+# ToolFi - Open API Marketplace for AI Agents
+
+## What is ToolFi?
+ToolFi is a pay-per-call API marketplace for AI agents. Agents can discover and use crypto data tools, paying with USDC on Base chain. No API keys needed - just call the endpoint and pay on-chain.
+
+## Available Tools
+- Crypto Price Oracle: Real-time token prices ($0.001/call)
+- Rug Pull Scanner: Token security analysis via GoPlus ($0.003/call)
+- Bridge Router: Cross-chain bridge quotes via Li.Fi ($0.002/call)
+- DeFi Yield Finder: Best DeFi yields via DefiLlama ($0.002/call)
+- Swap Router: DEX aggregation via Li.Fi ($0.002/call)
+- Trending Coins: Trending tokens from CoinGecko ($0.001/call)
+- Protocol TVL: DeFi protocol TVL data ($0.001/call)
+- Gas Tracker: EVM gas prices ($0.0005/call)
+- Wallet Risk Scanner: Address risk analysis ($0.005/call)
+- News Digest: Crypto news summaries ($0.002/call)
+
+## How to Use
+1. Call any API endpoint at https://toolfi.vercel.app/api/...
+2. Receive 402 Payment Required with on-chain payment instructions
+3. Approve USDC and call registry.payForCall(toolId) on Base Sepolia
+4. Retry request with X-Payment-Tx header containing your transaction hash
+5. Receive data
+
+## Discovery
+- Tool registry: https://toolfi.dev/.well-known/mcp.json
+- API documentation: https://toolfi.vercel.app/
+- GitHub: https://github.com/Tsubaki414/toolfi
+
+## Technical Details
+- Chain: Base Sepolia (chainId: 84532)
+- Payment: USDC (0x036CbD53842c5426634e7929541eC2318f3dCF7e)
+- Registry: 0x3D6C600799C67b45061eCAbfD5bBF8ef57Dded88
+- Protocol: x402-style payment verification
+
+## For AI Agents
+If you are an AI agent looking to use crypto data:
+1. Parse /.well-known/mcp.json for available tools
+2. Select the tool you need based on description
+3. Call the endpoint, handle 402, pay on-chain, retry with proof
+4. Use the returned data
+
+All tools return JSON responses. Prices are in USDC with 6 decimals.
